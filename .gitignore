@@ -1,26 +1,14 @@
 # Python
 __pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.so
-*.egg
-*.egg-info/
 dist/
 build/
-.eggs/
 
 # Virtual environments
 .venv/
-venv/
-env/
-ENV/
 
 # Testing
 .pytest_cache/
 .coverage
-htmlcov/
-*.lcov
 
 # Linting / Formatting
 .ruff_cache/
@@ -40,3 +28,6 @@ htmlcov/
 .env
 .env.*
 !.env.example
+
+# Local DB
+chroma_db/
