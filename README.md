@@ -50,9 +50,10 @@ Once inside the REPL, you can use the following commands:
 
 - `/ask <your question>`: Query your ingested documents.
 - `/ingest <path>`: Ingest a specific file or an entire directory recursively.
+- `/model`: Interactively select and set the active LLM model.
 - `/host <url>`: View or update the target server URL (persisted in `~/.quarterly.json`).
 - `/help`: Show available commands and usage hints.
-- `/exit`: Close the REPL.
+- `/exit` or `/quit`: Close the REPL.
 
 ## Development
 
