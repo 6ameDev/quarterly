@@ -1,7 +1,7 @@
 import asyncio
+import contextlib
 import json
 from pathlib import Path
-import contextlib
 
 import aiofiles
 import httpx
@@ -69,20 +69,17 @@ async def handle_host(new_host_str: str | None, current_host: str, config: dict)
 
 async def handle_ask(host: str, question: str):
     try:
-        async with httpx.AsyncClient() as client:
-            async with client.stream(
-                "POST", f"{host}/ask", json={"question": question}, timeout=120.0
-            ) as response:
-                if response.status_code != 200:
-                    text = await response.aread()
-                    print(
-                        f"\nError: Server returned status {response.status_code}: {text.decode('utf-8')}"
-                    )
-                    return
+        async with httpx.AsyncClient() as client, client.stream(
+            "POST", f"{host}/ask", json={"question": question}, timeout=120.0
+        ) as response:
+            if response.status_code != 200:
+                text = await response.aread()
+                print(f"\nError: Server returned status {response.status_code}: {text.decode('utf-8')}")
+                return
 
-                async for chunk in response.aiter_text():
-                    print(chunk, end="", flush=True)
-                print("\n")
+            async for chunk in response.aiter_text():
+                print(chunk, end="", flush=True)
+            print("\n")
     except httpx.ConnectError:
         print(f"\nError: Could not connect to {host}. Is the server running?")
     except Exception as e:
@@ -146,7 +143,7 @@ Available Commands:
 """)
 
 
-async def run_repl():
+async def repl():
     config = load_config()
     host = config.get("host", DEFAULT_HOST)
 
@@ -195,9 +192,7 @@ async def run_repl():
                     await handle_ask(host, parts[1].strip())
 
             else:
-                print(
-                    "Error: Unknown command or malformed input.\nType /help to see available commands."
-                )
+                print("Error: Unknown command or malformed input.\nType /help to see available commands.")
 
         except KeyboardInterrupt:
             continue
@@ -209,5 +204,5 @@ async def run_repl():
 
 def main():
     with contextlib.suppress(KeyboardInterrupt):
-        asyncio.run(run_repl())
+        asyncio.run(repl())
     print("Goodbye!")

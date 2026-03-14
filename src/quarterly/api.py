@@ -34,9 +34,7 @@ async def lifespan(app: FastAPI):
         sys.exit(1)
 
     try:
-        Settings.embed_model = OllamaEmbedding(
-            model_name=config.EMBED_MODEL_NAME, base_url=config.BASE_URL
-        )
+        Settings.embed_model = OllamaEmbedding(model_name=config.EMBED_MODEL_NAME, base_url=config.BASE_URL)
         Settings.llm = Ollama(
             model=config.LLM_MODEL_NAME,
             system_prompt=config.SYSTEM_PROMPT,
@@ -101,7 +99,7 @@ async def health_check():
 
 
 def main():
-    uvicorn.run("quarterly.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("quarterly.api:app", host="0.0.0.0", port=8000, reload=True)
 
 
 if __name__ == "__main__":

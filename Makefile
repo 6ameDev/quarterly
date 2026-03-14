@@ -4,12 +4,12 @@
 install:
 	uv sync --all-groups
 
-# Run the application
-run:
-	uv run quarterly
+# Run the server
+server:
+	uv run api
 
-# Run the cli
-cli:
+# Run the REPL
+repl:
 	uv run cli
 
 # Run tests
