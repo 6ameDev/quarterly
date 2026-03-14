@@ -28,6 +28,7 @@ build/
 .env
 .env.*
 !.env.example
+!.env.development
 
 # Local DB
 chroma_db/

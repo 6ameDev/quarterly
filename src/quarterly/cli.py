@@ -1,6 +1,5 @@
 import asyncio
 import contextlib
-import json
 from pathlib import Path
 
 import aiofiles
@@ -8,32 +7,13 @@ import httpx
 from prompt_toolkit import PromptSession
 from prompt_toolkit.styles import Style
 
-CONFIG_FILE = Path.home() / ".quarterly.json"
-DEFAULT_HOST = "http://localhost:8000"
+from quarterly import configs
 
 style = Style.from_dict(
     {
         "app": "#FFFFBA bold",
     }
 )
-
-
-def load_config():
-    if CONFIG_FILE.exists():
-        try:
-            with open(CONFIG_FILE) as f:
-                return json.load(f)
-        except Exception:
-            return {"host": DEFAULT_HOST}
-    return {"host": DEFAULT_HOST}
-
-
-def save_config(config):
-    try:
-        with open(CONFIG_FILE, "w") as f:
-            json.dump(config, f)
-    except Exception as e:
-        print(f"Failed to save config: {e}")
 
 
 async def check_server_health(host: str) -> bool:
@@ -45,7 +25,7 @@ async def check_server_health(host: str) -> bool:
         return False
 
 
-async def handle_host(new_host_str: str | None, current_host: str, config: dict) -> str:
+async def handle_host(new_host_str: str | None, current_host: str) -> str:
     if not new_host_str:
         print(f"Current host: {current_host}")
         return current_host
@@ -55,8 +35,7 @@ async def handle_host(new_host_str: str | None, current_host: str, config: dict)
         print(f"Current host: {current_host}")
         return current_host
 
-    config["host"] = new_host
-    save_config(config)
+    configs.update_user_host(new_host)
     print(f"Host updated to: {new_host}")
 
     if await check_server_health(new_host):
@@ -69,9 +48,10 @@ async def handle_host(new_host_str: str | None, current_host: str, config: dict)
 
 async def handle_ask(host: str, question: str):
     try:
-        async with httpx.AsyncClient() as client, client.stream(
-            "POST", f"{host}/ask", json={"question": question}, timeout=120.0
-        ) as response:
+        async with (
+            httpx.AsyncClient() as client,
+            client.stream("POST", f"{host}/ask", json={"question": question}, timeout=120.0) as response,
+        ):
             if response.status_code != 200:
                 text = await response.aread()
                 print(f"\nError: Server returned status {response.status_code}: {text.decode('utf-8')}")
@@ -144,8 +124,7 @@ Available Commands:
 
 
 async def repl():
-    config = load_config()
-    host = config.get("host", DEFAULT_HOST)
+    host = configs.get_user_host()
 
     print(f"Quarterly CLI initialized. Target server: {host}")
 
@@ -175,7 +154,7 @@ async def repl():
             elif text.startswith("/host"):
                 parts = text.split(" ", 1)
                 new_host_arg = parts[1].strip() if len(parts) > 1 else None
-                host = await handle_host(new_host_arg, host, config)
+                host = await handle_host(new_host_arg, host)
 
             elif text.startswith("/ingest"):
                 parts = text.split(" ", 1)
@@ -202,7 +181,11 @@ async def repl():
             print(f"An unexpected error occurred: {e}")
 
 
-def main():
+def run():
     with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(repl())
     print("Goodbye!")
+
+if __name__ == "__main__":
+    run()
+

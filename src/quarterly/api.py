@@ -10,7 +10,7 @@ from llama_index.core import Settings
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.llms.ollama import Ollama
 
-from quarterly import config, ollama
+from quarterly import configs, ollama
 from quarterly.analyst import Analyst
 from quarterly.ingestor import Ingestor
 from quarterly.schemas import IngestRequest, QuestionRequest
@@ -29,21 +29,23 @@ state = AppState()
 async def lifespan(app: FastAPI):
     print("Initializing centralized resources...")
 
-    if not await ollama.is_healthy(config.BASE_URL):
-        print(f"CRITICAL ERROR: Ollama is not reachable at {config.BASE_URL}")
+    base_url = configs.get_base_url()
+    if not await ollama.is_healthy(base_url):
+        print(f"CRITICAL ERROR: Ollama is not reachable at {base_url}")
         sys.exit(1)
 
     try:
-        Settings.embed_model = OllamaEmbedding(model_name=config.EMBED_MODEL_NAME, base_url=config.BASE_URL)
+        Settings.embed_model = OllamaEmbedding(model_name=configs.get_embed_model_name(), base_url=base_url)
+
         Settings.llm = Ollama(
-            model=config.LLM_MODEL_NAME,
-            system_prompt=config.SYSTEM_PROMPT,
+            model=configs.get_llm_model_name(),
+            system_prompt=configs.get_system_prompt(),
             request_timeout=120.0,
             temperature=0.1,
         )
 
-        db = chromadb.PersistentClient(path=config.PERSIST_DIR)
-        chroma_collection = db.get_or_create_collection(config.COLLECTION_NAME)
+        db = chromadb.PersistentClient(path=configs.get_persist_dir())
+        chroma_collection = db.get_or_create_collection(configs.get_collection_name())
 
         state.ingestor = Ingestor(collection=chroma_collection)
         state.analyst = Analyst(collection=chroma_collection)
@@ -98,9 +100,9 @@ async def health_check():
     return {"status": "ok"}
 
 
-def main():
+def run():
     uvicorn.run("quarterly.api:app", host="0.0.0.0", port=8000, reload=True)
 
 
 if __name__ == "__main__":
-    main()
+    run()
