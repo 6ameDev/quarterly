@@ -15,6 +15,7 @@ dependencies = [
     "llama-index-vector-stores-chroma>=0.5.5",
     "prompt-toolkit>=3.0.52",
     "python-dotenv>=1.2.2",
+    "questionary>=2.1.1",
     "uvicorn>=0.41.0",
 ]
  

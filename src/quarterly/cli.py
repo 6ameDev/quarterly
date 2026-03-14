@@ -1,18 +1,29 @@
-import asyncio
-import contextlib
 from pathlib import Path
 
 import aiofiles
 import httpx
+import questionary
+from questionary import Choice
 from prompt_toolkit import PromptSession
 from prompt_toolkit.styles import Style
 
 from quarterly import configs
 
-style = Style.from_dict(
+quarterly_style = Style.from_dict(
     {
         "app": "#FFFFBA bold",
     }
+)
+
+questionary_style = questionary.Style(
+    [
+        ("question", "bold"),
+        ("answer", "fg:#FFFFBA bold"),
+        ("pointer", "fg:#FFFFBA bold"),
+        ("highlighted", "fg:#FFFFBA bold"),
+        ("selected", "fg:#FFFFBA bold"),
+        ("instruction", "fg:#888888"),
+    ]
 )
 
 
@@ -110,12 +121,61 @@ async def handle_ingest(host: str, path_str: str):
         else:
             print(f"Error: Path is neither a file nor a directory: {path}")
 
+async def get_models(host: str) -> dict:
+    """Fetch the list of available models from Ollama."""
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"{host}/models", timeout=5.0)
+            if response.status_code == 200:
+                return response.json()
+            return {"models": [], "active_model": None}
+    except Exception:
+        return {"models": [], "active_model": None}
+
+
+async def handle_select_model(host: str, session: PromptSession):
+    """Interactively select and set the active model using questionary."""
+    model_data = await get_models(host)
+    models = model_data.get("models")
+    active_model = model_data.get("active_model")
+
+    if not models:
+        return
+
+    choices = [
+        Choice(title=model, value=model, checked=(model == active_model))
+        for model in models
+    ]
+
+    selected_model = await questionary.select(
+        "Select Active LLM Model:",
+        choices=choices,
+        style=questionary_style,
+        instruction="(ENTER to select, Ctrl+C to cancel)",
+        use_indicator=True,
+    ).ask_async()
+
+    if not selected_model:
+        return
+
+    try:
+        async with httpx.AsyncClient() as client:
+            payload = {"model_name": selected_model}
+            response = await client.post(f"{host}/models/active", json=payload, timeout=5.0)
+            if response.status_code == 200:
+                print(f"Success: {response.json().get('message')}")
+            else:
+                print(f"Error: Failed to set active model. Status {response.status_code}: {response.text}")
+    except Exception as e:
+        print(f"Error setting active model: {e}")
+
 
 def print_help():
     print("""
 Available Commands:
   /ask <question>   - Ask a question based on ingested documents
   /ingest <path>    - Ingest a file or an entire directory of text files
+  /model            - Interactively select and set the active LLM model
   /host             - Show current server host URL
   /host <url>       - Set the server host URL (e.g. http://127.0.0.1:8000)
   /help             - Show this help message
@@ -139,7 +199,7 @@ async def repl():
 
     while True:
         try:
-            text = await session.prompt_async([("class:app", "quarterly> ")], style=style)
+            text = await session.prompt_async([("class:app", "quarterly> ")], style=quarterly_style)
             text = text.strip()
 
             if not text:
@@ -150,6 +210,9 @@ async def repl():
 
             elif text == "/help":
                 print_help()
+
+            elif text == "/model":
+                await handle_select_model(host, session)
 
             elif text.startswith("/host"):
                 parts = text.split(" ", 1)
@@ -182,10 +245,13 @@ async def repl():
 
 
 def run():
+    import asyncio
+    import contextlib
+
     with contextlib.suppress(KeyboardInterrupt):
         asyncio.run(repl())
     print("Goodbye!")
 
+
 if __name__ == "__main__":
     run()
-

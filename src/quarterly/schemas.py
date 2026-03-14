@@ -8,3 +8,7 @@ class IngestRequest(BaseModel):
 
 class QuestionRequest(BaseModel):
     question: str
+
+
+class SetModelRequest(BaseModel):
+    model_name: str

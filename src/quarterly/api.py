@@ -13,7 +13,7 @@ from llama_index.llms.ollama import Ollama
 from quarterly import configs, ollama
 from quarterly.analyst import Analyst
 from quarterly.ingestor import Ingestor
-from quarterly.schemas import IngestRequest, QuestionRequest
+from quarterly.schemas import IngestRequest, QuestionRequest, SetModelRequest
 
 
 class AppState:
@@ -98,6 +98,31 @@ async def ask_question(request: QuestionRequest):
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}
+
+
+@app.get("/models")
+async def list_models():
+    base_url = configs.get_base_url()
+    models = await ollama.get_models(base_url)
+    active_model = getattr(Settings.llm, "model", None)
+    return {"models": models, "active_model": active_model}
+
+
+@app.post("/models/active")
+async def set_active_model(request: SetModelRequest):
+    try:
+        Settings.llm = Ollama(
+            model=request.model_name,
+            system_prompt=configs.get_system_prompt(),
+            request_timeout=120.0,
+            temperature=0.1,
+        )
+        return {
+            "status": "success",
+            "message": f"Active model set to '{request.model_name}'",
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 def run():
