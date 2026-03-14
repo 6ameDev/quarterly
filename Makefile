@@ -1,4 +1,4 @@
-.PHONY: install run test lint format clean
+.PHONY: install run cli test lint format clean
 
 # Install all dependencies (including dev)
 install:
@@ -7,6 +7,10 @@ install:
 # Run the application
 run:
 	uv run quarterly
+
+# Run the cli
+cli:
+	uv run cli
 
 # Run tests
 test:

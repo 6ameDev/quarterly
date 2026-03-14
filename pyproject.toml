@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "aiofiles>=25.1.0",
     "chromadb>=1.5.5",
     "fastapi>=0.135.1",
     "httpx>=0.28.1",
@@ -12,11 +13,13 @@ dependencies = [
     "llama-index-embeddings-ollama>=0.8.6",
     "llama-index-llms-ollama>=0.9.1",
     "llama-index-vector-stores-chroma>=0.5.5",
+    "prompt-toolkit>=3.0.52",
     "uvicorn>=0.41.0",
 ]
  
 [project.scripts]
 quarterly = "quarterly.main:main"
+cli = "quarterly.cli:main"
 
 
 [dependency-groups]
