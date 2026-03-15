@@ -17,6 +17,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "questionary>=2.1.1",
     "uvicorn>=0.41.0",
+    "nest_asyncio>=1.6.0"
 ]
  
 [project.scripts]

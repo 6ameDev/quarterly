@@ -85,8 +85,8 @@ async def ingest_file(host: str, filepath: Path, client: httpx.AsyncClient):
         payload = {"text": content, "metadata": {"filename": filepath.name}}
 
         response = await client.post(f"{host}/ingest", json=payload, timeout=60.0)
-        if response.status_code == 200:
-            print(f"Ingested {filepath.name}")
+        if response.status_code >= 200 and response.status_code < 300:
+            print(f"Submitted {filepath.name} for ingestion")
         else:
             print(f"Failed to ingest {filepath.name}: {response.text}")
     except UnicodeDecodeError:

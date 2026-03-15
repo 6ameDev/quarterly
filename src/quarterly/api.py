@@ -1,10 +1,10 @@
 import sys
 import traceback
 from contextlib import asynccontextmanager
-
+import nest_asyncio
 import chromadb
 import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from llama_index.core import Settings
 from llama_index.embeddings.ollama import OllamaEmbedding
@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI):
         Settings.llm = Ollama(
             model=configs.get_llm_model_name(),
             system_prompt=configs.get_system_prompt(),
-            request_timeout=120.0,
+            request_timeout=300.0,
             temperature=0.1,
         )
 
@@ -59,24 +59,22 @@ async def lifespan(app: FastAPI):
     yield
     print("Shutting down...")
 
-
+nest_asyncio.apply()
 app = FastAPI(title="Quarterly API", lifespan=lifespan)
 
 
-@app.post("/ingest")
-async def ingest_document(request: IngestRequest):
+@app.post("/ingest", status_code=202)
+async def ingest_document(request: IngestRequest, background_tasks: BackgroundTasks):
     if not state.ingestor:
         raise HTTPException(status_code=503, detail="Ingestor not initialized")
 
-    try:
-        state.ingestor.ingest_text(request.text, metadata=request.metadata)
-        filename = request.metadata.get("filename", "unnamed") if request.metadata else "unnamed"
-        return {
-            "status": "success",
-            "message": f"Document ingested: {filename}",
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) from e
+    filename = request.metadata.get("filename", "unnamed") if request.metadata else "unnamed"
+    background_tasks.add_task(state.ingestor.ingest_text, request.text, request.metadata)
+    
+    return {
+        "status": "accepted",
+        "message": f"Document ingestion started in background: {filename}",
+    }
 
 
 @app.post("/ask")
@@ -85,10 +83,11 @@ async def ask_question(request: QuestionRequest):
         raise HTTPException(status_code=503, detail="Analyst not initialized")
 
     try:
-        response = state.analyst.ask(request.question, streaming=True)
+        response = await state.analyst.ask(request.question, streaming=True)
 
-        def response_generator():
-            yield from response.response_gen
+        async def response_generator():
+            async for token in response.response_gen:
+                yield token
 
         return StreamingResponse(response_generator(), media_type="text/plain")
     except Exception as e:
